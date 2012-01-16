@@ -13,6 +13,7 @@ from urllib import quote
 import socket
 import re
 import json
+import datetime
 from threading import Thread
 from calibre import as_unicode
 from calibre.ebooks.metadata.sources.base import Source
@@ -29,6 +30,7 @@ class Biblionet(Source):
     author = 'Nikos Anagnostou'
     version = (1, 0, 0)
     minimum_calibre_version = (0, 8, 4)
+
 
     capabilities = frozenset(['identify'])
         # , 'cover'
@@ -116,6 +118,8 @@ class Worker(Thread): # Get details
         self.biblionetid = None
         self.series_index= None
         self.authors=[]
+        self.yr_msg1 ='No publishing year found'
+        self.yr_msg2 = 'An error occured'
 
     def run(self):
         self.log.info("    Worker.run: self: ", self)
@@ -131,7 +135,7 @@ class Worker(Thread): # Get details
         
         try:
             raw = self.browser.open_novisit(self.url, timeout=self.timeout).read().strip()
-            self.log.exception(raw)
+            self.log.info(raw)
         except Exception as e:
             if callable(getattr(e, 'getcode', None)) and e.getcode() == 404:
                 self.log.error('URL malformed: %r' % self.url)
@@ -154,7 +158,7 @@ class Worker(Thread): # Get details
         try:
             # root = fromstring(clean_ascii_chars(raw))
             root = json.loads(raw)
-            self.log.exception(root)
+            self.log.info(root)
         except:
             msg = 'Failed to parse book detail page: %r' % self.url
             self.log.exception(msg)
@@ -172,22 +176,75 @@ class Worker(Thread): # Get details
             self.log.exception('Error parsing title for url: %r' % self.url)
             self.title = None
             self.series_index = None
+
         try:
             self.authors = [root['authors'].strip()]
-            self.log.exception(self.authors )
+            self.log.info(self.authors )
         except:
             self.log.exception('Error parsing authors for url: %r' % self.url)
             self.authors = None
 
+        try:
+            self.cover_url = root['cover_url']
+            self.log.info('Parsed URL for cover:%r'%self.cover_url)
+            self.plugin.cache_identifier_to_cover_url(self.biblionetid, self.cover_url)
+        except:
+            self.log.exception('Error parsing cover for url: %r'%self.url)
+            self.has_cover = bool(self.cover_url)
+
+        try:
+            self.publisher = root['publisher']
+            self.log.info('Parsed publisher:%s'%self.publisher)
+        except:
+            self.log.exception('Error parsing publisher for url: %r'%self.url)
+
+        try:
+            self.tags = root['categories'].replace('DDC: ','DDC:').replace('-','').split()[:-1]
+            self.log.info('Parsed tags:%s'%self.tags)
+        except:
+            self.log.exception('Error parsing tags for url: %r'%self.url)
+
+        try:
+            self.pubdate = root['yr_published']
+            self.log.info('Parsed publication date:%s'%self.pubdate)
+        except:
+            self.log.exception('Error parsing published date for url: %r'%self.url)
+            
         mi = Metadata(self.title, self.authors)
         mi.set_identifier('biblionet', self.biblionetid)
 
         if self.series_index:
-            mi.series_index = float(self.series_index)
-
-        mi.source_relevance = self.relevance
+            try:
+                mi.series_index = float(self.series_index)
+            except:
+                self.log.exception('Error loading series')
+        if self.relevance:
+            try:
+                mi.source_relevance = self.relevance
+            except:
+                self.log.exception('Error loading relevance')
+        if self.cover_url:
+            try:
+                mi.cover_url = self.cover_url
+            except:
+                self.log.exception('Error loading cover_url')
+        if self.publisher:
+            try:
+                mi.publisher = self.publisher
+            except:
+                self.log.exception('Error loading publisher')
+        if self.tags:
+            try:
+                mi.tags = self.tags
+            except:
+                self.log.exception('Error loading tags')
+        if self.pubdate:
+            try:
+                if self.pubdate not in (self.yr_msg1, self.yr_msg2):
+                    d = datetime.date(int(self.pubdate),1,1)
+                    mi.pubdate = d
+            except:
+                self.log.exception('Error loading pubdate')
 
         self.plugin.clean_downloaded_metadata(mi)
-
-        print(mi)
         self.result_queue.put(mi)        
