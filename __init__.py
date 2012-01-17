@@ -16,6 +16,7 @@ import json
 import datetime
 from threading import Thread
 from calibre import as_unicode
+from calibre import browser
 from calibre.ebooks.metadata.sources.base import Source
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
@@ -32,14 +33,10 @@ class Biblionet(Source):
     minimum_calibre_version = (0, 8, 4)
 
 
-    capabilities = frozenset(['identify'])
+    capabilities = frozenset(['identify', 'cover'])
         # , 'cover'
-    touched_fields = frozenset(['identifier:isbn',
-                                'title',
-                                'authors'])
+    touched_fields = frozenset(['identifier:isbn','identifier:biblionetid','title','authors','tags', 'publisher', 'pubdate', 'series'])
         # 'identifier:isbn',
-        # 'rating',
-        # 'comments',
         # 'publisher',
         # 'pubdate',
         # 'tags',
@@ -54,7 +51,6 @@ class Biblionet(Source):
         if isbn:
             return ('biblionet', isbn,
                     '%s%s' % (Biblionet.BASE_URL, isbn))
-
 
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30):
         '''
@@ -97,6 +93,73 @@ class Biblionet(Source):
                 break
 
         return None
+
+
+    def get_cached_cover_url(self, identifiers):
+        url = None
+        biblionet = identifiers.get('biblionet', None)
+        if biblionet is None:
+            isbn = identifiers.get('isbn', None)
+            if isbn is not None:
+                biblionet = self.cached_isbn_to_identifier(isbn)
+        if biblionet is not None:
+            url = self.cached_identifier_to_cover_url(biblionet)
+        return url
+  
+  
+    def cached_identifier_to_cover_url(self, id_):
+        with self.cache_lock:
+          url = self._get_cached_identifier_to_cover_url(id_)
+          if not url:
+            # Try for a "small" image in the cache
+              url = self._get_cached_identifier_to_cover_url('small/'+id_)
+          return url
+
+
+    def _get_cached_identifier_to_cover_url(self, id_):
+        # This must only be called once we have the cache lock
+        url = self._identifier_to_cover_url_cache.get(id_, None)
+        if not url:
+            key_prefix = id_.rpartition('/')[0]
+            for key in self._identifier_to_cover_url_cache.keys():
+              if key.startswith('key_prefix'):
+                  return self._identifier_to_cover_url_cache[key]
+        return url
+    
+    
+    def download_cover(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30):
+        cached_url = self.get_cached_cover_url(identifiers)
+        if cached_url is None:
+            log.info('No cached cover found, running identify')
+            rq = Queue()
+            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
+            if abort.is_set():
+                return
+            results = []
+            while True:
+                try:
+                    results.append(rq.get_nowait())
+                except Empty:
+                    break
+            results.sort(key=self.identify_results_keygen(
+                title=title, authors=authors, identifiers=identifiers))
+            for mi in results:
+                cached_url = self.get_cached_cover_url(mi.identifiers)
+                if cached_url is not None:
+                    break
+        if cached_url is None:
+            log.info('No cover found')
+            return
+    
+        if abort.is_set():
+            return
+        br = self.browser
+        log('Downloading cover from:', cached_url)
+        try:
+            cdata = br.open_novisit(cached_url, timeout=timeout).read()
+            result_queue.put((self, cdata))
+        except:
+            log.exception('Failed to download cover from:', cached_url)
 
 class Worker(Thread): # Get details
 
