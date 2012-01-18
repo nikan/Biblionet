@@ -44,7 +44,7 @@ class Biblionet(Source):
 
     supports_gzip_transfer_encoding = True
 
-    BASE_URL = 'http://localhost/~nikan/bookmeta/index.php?isbn='
+    BASE_URL = 'http://bookmeta.phpfogapp.com/index.php?isbn='
 
     def get_book_url(self, identifiers):
         isbn = identifiers.get('isbn', None)
