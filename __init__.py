@@ -22,7 +22,7 @@ from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.library.comments import sanitize_comments_html
 from calibre.utils.cleantext import clean_ascii_chars
-
+from Queue import Queue, Empty
 
 class Biblionet(Source):
     name = 'Biblionet'
