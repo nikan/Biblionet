@@ -44,6 +44,9 @@ class Biblionet(Source):
 
     supports_gzip_transfer_encoding = True
 
+    # http://bookmeta.phpfogapp.com is currently offline
+    # Please follow instructions on https://github.com/nikan/bookmeta
+    # and change the ‘http://bookmeta.phpfogapp.com/‘ to the address of your server 
     BASE_URL = 'http://bookmeta.phpfogapp.com/index.php?isbn='
 
     def get_book_url(self, identifiers):
