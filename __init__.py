@@ -22,6 +22,7 @@ from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.library.comments import sanitize_comments_html
 from calibre.utils.cleantext import clean_ascii_chars
+from Queue import Queue, Empty
 
 
 class Biblionet(Source):
@@ -43,7 +44,10 @@ class Biblionet(Source):
         # 'series'
 
     supports_gzip_transfer_encoding = True
-
+    
+    # http://bookmeta.phpfogapp.com is currently offline
+    # Please follow instructions created by nikan on https://github.com/nikan/bookmeta
+    # and change the ‘http://bookmeta.phpfogapp.com/‘ to the address of your server 
     BASE_URL = 'http://bookmeta.phpfogapp.com/index.php?isbn='
 
     def get_book_url(self, identifiers):
