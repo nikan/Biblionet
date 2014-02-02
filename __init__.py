@@ -48,7 +48,7 @@ class Biblionet(Source):
     # http://bookmeta.phpfogapp.com is currently offline
     # Please follow instructions created by nikan on https://github.com/nikan/bookmeta
     # and change the ‘http://bookmeta.phpfogapp.com/‘ to the address of your server 
-    BASE_URL = 'http://bookmeta.phpfogapp.com/index.php?isbn='
+    BASE_URL = 'http://metablogging.gr/bookmeta/index.php?isbn='
 
     def get_book_url(self, identifiers):
         isbn = identifiers.get('isbn', None)
