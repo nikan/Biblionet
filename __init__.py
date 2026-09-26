@@ -9,7 +9,7 @@ __copyright__ = '2012, Nikos Anagnostou (nanagnos@gmail.com)'
 __docformat__ = 'restructuredtext el'
 
 import time
-from urllib import quote
+from urllib.parse import quote
 import socket
 import re
 import json
@@ -22,7 +22,7 @@ from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.library.comments import sanitize_comments_html
 from calibre.utils.cleantext import clean_ascii_chars
-from Queue import Queue, Empty
+from queue import Empty
 
 
 class Biblionet(Source):
